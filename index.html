@@ -1,39 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Retro ASCII Player</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      /* Custom scrollbar for a more retro feel */
-      ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #1a1a1a;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 5px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #555;
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
-  }
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MP4 to ASCII Art Exporter</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+<style>
+/* Custom styles to integrate with Bootstrap dark theme */
+body { 
+    background-color: #212529 !important; /* Dark theme background */
+    color: #f8f9fa; 
+    font-family: 'Consolas', 'Courier New', monospace; /* Keep monospace for ASCII context */
 }
-</script>
+.ascii-container {
+    padding: 20px;
+    margin-top: 30px;
+    background-color: #000000; /* Pure black background for ASCII art */
+    border: 1px dashed #495057;
+    border-radius: .375rem;
+    overflow-x: auto; /* Handle wide output */
+}
+#asciiCanvas {
+    /* Canvas should fill its container */
+    display: block;
+    width: 100%; 
+    height: auto;
+}
+/* Ensure form elements look good in dark mode */
+.form-control, .form-range, .btn {
+    box-shadow: none !important;
+}
+</style>
 </head>
-  <body class="bg-black text-gray-200 antialiased overflow-hidden">
-    <div id="root"></div>
-  </body>
+<body>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <h1 class="text-center mb-4 text-success">MP4 to ASCII Art Exporter</h1>
+
+            <div id="controls" class="p-4 bg-dark border rounded shadow-lg">
+                <div class="row g-3">
+                    
+                    <div class="col-12">
+                        <label for="videoFile" class="form-label fw-bold">Select MP4 Video File</label>
+                        <input type="file" id="videoFile" accept="video/mp4" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="chars" class="form-label fw-bold">ASCII Characters (Dark to Light)</label>
+                        <input type="text" id="chars" value="@%#*+=-:. " class="form-control" title="Characters used to represent brightness levels.">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="asciiWidth" class="form-label fw-bold">Resolution Width (Characters)</label>
+                        <input type="number" id="asciiWidth" value="120" min="40" max="400" class="form-control" title="The number of columns in the final ASCII art frame.">
+                    </div>
+
+                    <div class="col-md-8">
+                        <label for="contrast" class="form-label fw-bold">Contrast Level</label>
+                        <input type="range" id="contrast" min="0.5" max="3.0" step="0.1" value="1.5" class="form-range">
+                    </div>
+                    
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" role="switch" id="color" checked>
+                            <label class="form-check-label fw-bold" for="color">Enable Color Output</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12 mt-4">
+                        <button id="convertBtn" class="btn btn-success btn-lg w-100" disabled>
+                            <span id="buttonText">Load Video & Convert to ASCII MP4</span>
+                            <span class="spinner-border spinner-border-sm visually-hidden" role="status" aria-hidden="true" id="spinner"></span>
+                        </button>
+                    </div>
+                    
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <p id="statusMessage" class="lead text-warning">Awaiting file upload...</p>
+
+                <div id="downloadLink" class="alert alert-primary d-none" role="alert">
+                    <h4 class="alert-heading">Conversion Complete!</h4>
+                    <p>Your ASCII video is ready to download.</p>
+                    <a id="downloadHref" href="#" download="ascii-video.mp4" class="btn btn-primary mt-2">Download ASCII MP4</a>
+                </div>
+            </div>
+
+            <h2 class="text-center text-light mt-5 mb-3">Live ASCII Preview</h2>
+            <div class="ascii-container">
+                <canvas id="asciiCanvas"></canvas>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<video id="video" preload="auto" class="d-none"></video>
+<canvas id="videoCanvas" class="d-none"></canvas>
+
+<script src="https://cdn.jsdelivr.net/gh/antimatter15/whammy/whammy.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script src="renderer.js"></script>
+
+</body>
 </html>
