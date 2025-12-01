@@ -205,7 +205,6 @@
         };
 
         const ctx = {
-            // CRITICAL FIX: Ensure willReadFrequently is true for fast read operations
             video: els.videoCanvas.getContext('2d', { willReadFrequently: true }),
             ascii: els.asciiCanvas.getContext('2d')
         };
@@ -263,13 +262,6 @@
         function mapChar(val, chars) {
             return chars[Math.floor((val / 255) * (chars.length - 1))];
         }
-        
-        // Simple contrast adjustment
-        function applyContrast(value, contrast) {
-            const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
-            let adjusted = factor * (value - 128) + 128;
-            return Math.max(0, Math.min(255, adjusted));
-        }
 
         function drawAsciiFrame(width) {
             const w = els.video.videoWidth;
@@ -311,12 +303,20 @@
                 for (let x = 0; x < width; x++) {
                     const i = (y * width + x) * 4;
                     
-                    // Apply contrast to color channels
-                    let r = applyContrast(data[i], contrast);
-                    let g = applyContrast(data[i+1], contrast);
-                    let b = applyContrast(data[i+2], contrast);
+                    // Simple contrast
+                    let r = data[i], g = data[i+1], b = data[i+2];
+                    if (contrast !== 1) {
+                        const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+                        r = factor * (r - 128) + 128;
+                        g = factor * (g - 128) + 128;
+                        b = factor * (b - 128) + 128;
+                    }
                     
-                    // Grayscale for character selection
+                    // Clamping
+                    r = Math.max(0, Math.min(255, r));
+                    g = Math.max(0, Math.min(255, g));
+                    b = Math.max(0, Math.min(255, b));
+
                     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
                     const char = mapChar(gray, chars);
 
@@ -342,8 +342,9 @@
             els.progressContainer.classList.remove('hidden');
             els.downloadLink.classList.add('hidden');
             
-            const fps = 15;
-            const whammyVideo = new Whammy.Video(fps, 0.8); // Quality set in constructor
+            const fps = 15; // Standard ASCII FPS
+            const quality = 0.8;
+            const whammyVideo = new Whammy.Video(fps, quality);
             
             const duration = els.video.duration;
             const interval = 1 / fps;
@@ -354,36 +355,28 @@
                     await seekTo(currentTime);
                     drawAsciiFrame(parseInt(els.inputs.width.value));
                     
-                    // CRITICAL FIX: Clone canvas content to avoid reference issues AND 
-                    // force aggressive PNG compression (quality 0.5) to reduce memory load
+                    // CRITICAL FIX: Clone canvas content to avoid reference issues
                     const tempCanvas = document.createElement('canvas');
                     tempCanvas.width = els.asciiCanvas.width;
                     tempCanvas.height = els.asciiCanvas.height;
                     const tempCtx = tempCanvas.getContext('2d');
                     tempCtx.drawImage(els.asciiCanvas, 0, 0);
                     
-                    // Whammy.js add(canvas, quality) -> quality must be low for long videos
-                    whammyVideo.add(tempCanvas, 0.5); 
+                    whammyVideo.add(tempCanvas);
 
                     currentTime += interval;
                     const pct = Math.min(99, Math.round((currentTime / duration) * 100));
                     els.progressBar.style.width = `${pct}%`;
                     els.progressText.innerText = `${pct}%`;
-                    els.convertBtn.innerHTML = `<span>Encoding Frames... ${pct}%</span>`;
-
 
                     // Allow UI to breathe
                     await new Promise(r => setTimeout(r, 0));
                 }
 
                 els.progressText.innerText = "Finalizing...";
-                els.convertBtn.innerHTML = `<span>Compiling Video...</span>`;
-
                 const output = whammyVideo.compile();
                 
-                if (!output || output.size === 0) {
-                    throw new Error("Video compilation failed. Try a lower 'Quality / Size' setting or a shorter video.");
-                }
+                if (!output) throw new Error("Video compilation failed (empty output)");
                 
                 const url = URL.createObjectURL(output);
                 
@@ -392,20 +385,15 @@
                 els.downloadLink.download = `ascii_${els.fileName.innerText.split('.')[0]}.webm`;
                 els.downloadLink.classList.remove('hidden');
                 
-                els.convertBtn.innerHTML = `<span>Conversion Complete!</span>`;
+                els.convertBtn.innerHTML = `<span>Conversion Complete</span>`;
                 els.convertBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
                 els.convertBtn.classList.add('bg-gray-800', 'cursor-not-allowed');
-                els.convertBtn.disabled = true;
 
             } catch (err) {
                 console.error(err);
-                els.progressText.innerText = `Error`;
-                alert("Conversion failed. Try a shorter video or lower the 'Quality / Size'. Error: " + err.message);
-                
+                alert("Error: " + err.message);
                 els.convertBtn.disabled = false;
-                els.convertBtn.innerHTML = `<span>Try Again</span>`;
-                els.convertBtn.classList.remove('bg-gray-800', 'cursor-not-allowed');
-                els.convertBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                els.convertBtn.innerText = "Try Again";
             }
         });
 
