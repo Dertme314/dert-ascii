@@ -1,14 +1,15 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { AsciiConfig, PlayerState } from './types';
+import { AsciiConfig, PlayerState, AsciiProcessorRef } from './types';
 import { DEFAULT_WIDTH, MAX_WIDTH, MIN_WIDTH } from './constants';
-import AsciiProcessor, { AsciiProcessorRef } from './components/AsciiProcessor';
-import { Upload, Film, Settings, Video, Palette, Square, Circle } from 'lucide-react';
+import AsciiProcessor from './components/AsciiProcessor';
+import { Upload, Film, Settings, Palette, Square, Circle, Camera, Copy, ClipboardCheck } from 'lucide-react';
 
 export default function App() {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [playerState, setPlayerState] = useState<PlayerState>(PlayerState.IDLE);
   const [showControls, setShowControls] = useState<boolean>(true);
   const [isRecording, setIsRecording] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const processorRef = useRef<AsciiProcessorRef>(null);
 
@@ -42,6 +43,24 @@ export default function App() {
       processorRef.current.startRecording();
       setIsRecording(true);
     }
+  };
+
+  const handleSnapshot = () => {
+      if (!processorRef.current) return;
+      const dataUrl = processorRef.current.captureFrame();
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'ascii-frame.png';
+      a.click();
+  };
+
+  const handleCopyText = () => {
+      if (!processorRef.current) return;
+      const text = processorRef.current.captureText();
+      navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+      });
   };
 
   return (
@@ -86,7 +105,7 @@ export default function App() {
           className={`absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 z-10 ${showControls ? 'translate-y-0' : 'translate-y-full'}`}
           onMouseLeave={() => setShowControls(false)}
         >
-          <div className="max-w-4xl mx-auto bg-gray-900/90 border border-green-900/50 backdrop-blur-md rounded-xl p-4 shadow-2xl text-green-500 font-mono">
+          <div className="max-w-5xl mx-auto bg-gray-900/90 border border-green-900/50 backdrop-blur-md rounded-xl p-4 shadow-2xl text-green-500 font-mono">
             
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               
@@ -126,12 +145,12 @@ export default function App() {
                  <div className="flex flex-col space-y-1">
                     <div className="flex justify-between text-xs">
                         <span>CONTRAST</span>
-                        <span>{(config.contrast * 100).toFixed(0)}%</span>
+                        <span>{Math.round(config.contrast * 100)}%</span>
                     </div>
                     <input 
                         type="range" 
                         min="-0.5" 
-                        max="0.8" 
+                        max="0.5" 
                         step="0.05"
                         value={config.contrast}
                         onChange={(e) => setConfig(prev => ({ ...prev, contrast: Number(e.target.value) }))}
@@ -140,52 +159,55 @@ export default function App() {
                  </div>
               </div>
 
-              {/* Toggles */}
-              <div className="flex items-center space-x-3">
-                 <button 
-                    onClick={() => setConfig(prev => ({ ...prev, inverted: !prev.inverted }))}
-                    className={`p-2 rounded border transition-colors ${config.inverted ? 'bg-green-500 text-black border-green-500' : 'bg-transparent text-green-500 border-green-800 hover:border-green-500'}`}
-                    title="Invert Colors"
-                 >
-                    <Settings className="w-4 h-4" />
-                 </button>
+              {/* Toggles & Actions */}
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setConfig(prev => ({ ...prev, inverted: !prev.inverted }))}
+                  className={`p-2 rounded border border-green-900 transition-all ${config.inverted ? 'bg-green-500 text-black' : 'bg-black text-green-500 hover:bg-green-900/50'}`}
+                  title="Invert Colors"
+                >
+                  <Settings className="w-5 h-5" />
+                </button>
 
-                 <button 
-                    onClick={() => setConfig(prev => ({ ...prev, color: !prev.color }))}
-                    className={`p-2 rounded border transition-colors ${config.color ? 'bg-blue-500 text-white border-blue-500' : 'bg-transparent text-green-500 border-green-800 hover:border-green-500'}`}
-                    title="Color Mode"
-                 >
-                    <Palette className="w-4 h-4" />
-                 </button>
+                <button 
+                  onClick={() => setConfig(prev => ({ ...prev, color: !prev.color }))}
+                  className={`p-2 rounded border border-green-900 transition-all ${config.color ? 'bg-green-500 text-black' : 'bg-black text-green-500 hover:bg-green-900/50'}`}
+                  title="Color Mode"
+                >
+                  <Palette className="w-5 h-5" />
+                </button>
+                
+                <div className="w-px h-8 bg-green-900/50 mx-1"></div>
 
-                 <div className="h-6 w-px bg-green-900/50 mx-2"></div>
+                <button 
+                  onClick={handleSnapshot}
+                  className="p-2 rounded border border-green-900 bg-black text-green-500 hover:bg-green-900/50 transition-all"
+                  title="Take Snapshot (PNG)"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
 
-                 <button 
-                    onClick={toggleRecording}
-                    className={`flex items-center space-x-2 px-3 py-1.5 rounded border transition-all ${
-                        isRecording 
-                        ? 'bg-red-500 text-white border-red-500 animate-pulse' 
-                        : 'bg-transparent text-green-500 border-green-800 hover:border-green-500'
-                    }`}
-                    title="Record to MP4/WebM"
-                 >
-                    {isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 fill-current" />}
-                    <span className="text-xs font-bold">{isRecording ? 'STOP' : 'REC'}</span>
-                 </button>
+                <button 
+                  onClick={handleCopyText}
+                  className="p-2 rounded border border-green-900 bg-black text-green-500 hover:bg-green-900/50 transition-all relative"
+                  title="Copy Raw Text"
+                >
+                  {copied ? <ClipboardCheck className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                </button>
+
+                <button 
+                  onClick={toggleRecording}
+                  className={`p-2 rounded border border-green-900 transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-black text-red-500 hover:bg-red-900/20'}`}
+                  title={isRecording ? "Stop Recording" : "Start Recording"}
+                >
+                  {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Circle className="w-5 h-5 fill-current" />}
+                </button>
               </div>
 
             </div>
           </div>
         </div>
       )}
-
-      {/* CRT Scanline Overlay Effect */}
-      <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden opacity-10">
-        <div className="w-full h-full" style={{
-            background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))',
-            backgroundSize: '100% 2px, 3px 100%'
-        }}></div>
-      </div>
     </div>
   );
 }
