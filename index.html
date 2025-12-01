@@ -1,111 +1,371 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MP4 to ASCII Art Exporter</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video to ASCII Converter</title>
+    <!-- Tailwind CSS for Modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar for the preview area */
+        .ascii-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .ascii-scroll::-webkit-scrollbar-track { background: #1f2937; }
+        .ascii-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        
+        /* Dropzone hover effect */
+        .dropzone:hover { border-color: #6366f1; background-color: #f3f4f6; }
+        .dark .dropzone:hover { border-color: #818cf8; background-color: #1f2937; }
 
-<style>
-/* Custom styles to integrate with Bootstrap dark theme */
-body { 
-    background-color: #212529 !important; /* Dark theme background */
-    color: #f8f9fa; 
-    font-family: 'Consolas', 'Courier New', monospace; /* Keep monospace for ASCII context */
-}
-.ascii-container {
-    padding: 20px;
-    margin-top: 30px;
-    background-color: #000000; /* Pure black background for ASCII art */
-    border: 1px dashed #495057;
-    border-radius: .375rem;
-    overflow-x: auto; /* Handle wide output */
-}
-#asciiCanvas {
-    /* Canvas should fill its container */
-    display: block;
-    width: 100%; 
-    height: auto;
-}
-/* Ensure form elements look good in dark mode */
-.form-control, .form-range, .btn {
-    box-shadow: none !important;
-}
-</style>
+        canvas { image-rendering: pixelated; }
+    </style>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-300">
 
-<div class="container my-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
+    <!-- Navigation / Header -->
+    <nav class="w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4 px-6 shadow-sm">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-semibold tracking-tight text-indigo-600 dark:text-indigo-400">
+                ASCII<span class="text-gray-800 dark:text-white">Motion</span>
+            </h1>
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                Client-side Converter
+            </div>
+        </div>
+    </nav>
 
-            <h1 class="text-center mb-4 text-success">MP4 to ASCII Art Exporter</h1>
-
-            <div id="controls" class="p-4 bg-dark border rounded shadow-lg">
-                <div class="row g-3">
-                    
-                    <div class="col-12">
-                        <label for="videoFile" class="form-label fw-bold">Select MP4 Video File</label>
-                        <input type="file" id="videoFile" accept="video/mp4" class="form-control" required>
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto w-full p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- LEFT COLUMN: Controls -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- File Upload Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-lg font-medium mb-4">1. Upload Video</h2>
+                
+                <div class="relative dropzone border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center transition-all cursor-pointer">
+                    <input type="file" id="videoFile" accept="video/mp4, video/webm" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <div class="flex flex-col items-center pointer-events-none">
+                        <svg class="w-10 h-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Click to upload MP4</p>
+                        <p class="text-xs text-gray-500 mt-1">Max duration recommended: < 30s</p>
                     </div>
-
-                    <div class="col-md-6">
-                        <label for="chars" class="form-label fw-bold">ASCII Characters (Dark to Light)</label>
-                        <input type="text" id="chars" value="@%#*+=-:. " class="form-control" title="Characters used to represent brightness levels.">
+                </div>
+                
+                <!-- File Status -->
+                <div id="fileInfo" class="mt-4 hidden p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg flex items-center gap-3">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div class="overflow-hidden">
+                        <p id="fileName" class="text-sm font-medium truncate text-indigo-700 dark:text-indigo-300">filename.mp4</p>
+                        <p id="fileMeta" class="text-xs text-gray-500 dark:text-gray-400">Loading...</p>
                     </div>
-
-                    <div class="col-md-6">
-                        <label for="asciiWidth" class="form-label fw-bold">Resolution Width (Characters)</label>
-                        <input type="number" id="asciiWidth" value="120" min="40" max="400" class="form-control" title="The number of columns in the final ASCII art frame.">
-                    </div>
-
-                    <div class="col-md-8">
-                        <label for="contrast" class="form-label fw-bold">Contrast Level</label>
-                        <input type="range" id="contrast" min="0.5" max="3.0" step="0.1" value="1.5" class="form-range">
-                    </div>
-                    
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check form-switch mb-1">
-                            <input class="form-check-input" type="checkbox" role="switch" id="color" checked>
-                            <label class="form-check-label fw-bold" for="color">Enable Color Output</label>
-                        </div>
-                    </div>
-
-                    <div class="col-12 mt-4">
-                        <button id="convertBtn" class="btn btn-success btn-lg w-100" disabled>
-                            <span id="buttonText">Load Video & Convert to ASCII MP4</span>
-                            <span class="spinner-border spinner-border-sm visually-hidden" role="status" aria-hidden="true" id="spinner"></span>
-                        </button>
-                    </div>
-                    
                 </div>
             </div>
 
-            <div class="text-center mt-3">
-                <p id="statusMessage" class="lead text-warning">Awaiting file upload...</p>
+            <!-- Settings Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-lg font-medium mb-4">2. Customize</h2>
+                
+                <div class="space-y-5">
+                    <!-- Contrast -->
+                    <div>
+                        <label class="flex justify-between text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                            Contrast <span id="contrastVal" class="text-gray-500">1.5</span>
+                        </label>
+                        <input type="range" id="contrast" min="0.5" max="3.0" step="0.1" value="1.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-indigo-600">
+                    </div>
 
-                <div id="downloadLink" class="alert alert-primary d-none" role="alert">
-                    <h4 class="alert-heading">Conversion Complete!</h4>
-                    <p>Your ASCII video is ready to download.</p>
-                    <a id="downloadHref" href="#" download="ascii-video.mp4" class="btn btn-primary mt-2">Download ASCII MP4</a>
+                    <!-- Resolution -->
+                    <div>
+                        <label class="flex justify-between text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                            Resolution Width <span id="widthVal" class="text-gray-500">120 chars</span>
+                        </label>
+                        <input type="number" id="asciiWidth" value="120" min="40" max="300" class="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-transparent dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+
+                    <!-- Characters -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Character Set</label>
+                        <input type="text" id="chars" value="@%#*+=-:. " class="w-full p-2 font-mono text-sm border border-gray-300 dark:border-gray-600 rounded bg-transparent dark:text-white tracking-widest">
+                    </div>
+
+                    <!-- Color Toggle -->
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Preserve Color</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="color" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
                 </div>
             </div>
 
-            <h2 class="text-center text-light mt-5 mb-3">Live ASCII Preview</h2>
-            <div class="ascii-container">
-                <canvas id="asciiCanvas"></canvas>
+            <!-- Action Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                 <!-- Progress Bar -->
+                 <div id="progressContainer" class="hidden mb-4">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-indigo-600 font-semibold">Processing...</span>
+                        <span id="progressText" class="text-gray-500">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <button id="convertBtn" disabled class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-sm transition-colors duration-200 flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>Start Conversion</span>
+                </button>
+
+                <a id="downloadLink" href="#" class="hidden mt-3 w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 text-center block">
+                    Download .WebM
+                </a>
             </div>
 
         </div>
-    </div>
-</div>
 
-<video id="video" preload="auto" class="d-none"></video>
-<canvas id="videoCanvas" class="d-none"></canvas>
+        <!-- RIGHT COLUMN: Preview -->
+        <div class="lg:col-span-8">
+            <div class="bg-gray-900 rounded-xl shadow-lg border border-gray-800 overflow-hidden h-full flex flex-col">
+                <div class="p-4 border-b border-gray-800 bg-gray-900 flex justify-between items-center">
+                    <h2 class="text-sm font-medium text-gray-400">Live Preview</h2>
+                    <div class="flex gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
+                    </div>
+                </div>
+                
+                <!-- Canvas Container -->
+                <div class="flex-grow bg-black relative flex items-center justify-center p-4 overflow-auto ascii-scroll" style="min-height: 400px;">
+                    <div id="placeholder" class="text-gray-600 text-center">
+                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <p>Preview will appear here</p>
+                    </div>
+                    <canvas id="asciiCanvas" class="hidden"></canvas>
+                </div>
+            </div>
+        </div>
 
-<script src="https://cdn.jsdelivr.net/gh/antimatter15/whammy/whammy.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-<script src="renderer.js"></script>
+    </main>
 
+    <!-- Hidden Processing Elements -->
+    <video id="video" class="hidden" preload="auto" playsinline muted></video>
+    <canvas id="videoCanvas" class="hidden"></canvas>
+
+    <!-- Whammy JS for WebM encoding -->
+    <script src="https://cdn.jsdelivr.net/gh/antimatter15/whammy/whammy.js"></script>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('videoFile');
+        const video = document.getElementById('video');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const videoCtx = videoCanvas.getContext('2d', { willReadFrequently: true });
+        const asciiCanvas = document.getElementById('asciiCanvas');
+        const asciiCtx = asciiCanvas.getContext('2d');
+        const placeholder = document.getElementById('placeholder');
+        
+        // UI Elements
+        const convertBtn = document.getElementById('convertBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileNameDisplay = document.getElementById('fileName');
+        const fileMetaDisplay = document.getElementById('fileMeta');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const downloadLink = document.getElementById('downloadLink');
+
+        // Inputs
+        const contrastInput = document.getElementById('contrast');
+        const widthInput = document.getElementById('asciiWidth');
+        const charsInput = document.getElementById('chars');
+        const colorInput = document.getElementById('color');
+
+        // Update Slider Labels
+        contrastInput.addEventListener('input', (e) => document.getElementById('contrastVal').innerText = e.target.value);
+        widthInput.addEventListener('input', (e) => document.getElementById('widthVal').innerText = e.target.value + ' chars');
+
+        // 1. FILE UPLOAD HANDLER
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Reset UI
+            downloadLink.classList.add('hidden');
+            progressContainer.classList.add('hidden');
+            convertBtn.disabled = true;
+            convertBtn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span>Loading Video...</span>
+            `;
+
+            // Display File Info
+            fileInfo.classList.remove('hidden');
+            fileNameDisplay.innerText = file.name;
+            fileMetaDisplay.innerText = "Analyzing...";
+
+            // Load Video
+            const url = URL.createObjectURL(file);
+            video.src = url;
+            video.load();
+        });
+
+        // 2. VIDEO METADATA LOADED
+        video.addEventListener('loadeddata', () => {
+            fileMetaDisplay.innerText = `Duration: ${video.duration.toFixed(1)}s | ${video.videoWidth}x${video.videoHeight}px`;
+            
+            // Unlock Button
+            convertBtn.disabled = false;
+            convertBtn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Start Conversion</span>
+            `;
+
+            // Setup Preview Canvas
+            placeholder.classList.add('hidden');
+            asciiCanvas.classList.remove('hidden');
+            
+            // Draw one preview frame
+            drawAsciiFrame(parseInt(widthInput.value));
+        });
+
+        // 3. UTILITY FUNCTIONS
+        function mapChar(value, chars) {
+            const index = Math.floor((value / 255) * (chars.length - 1));
+            return chars[index];
+        }
+
+        function applyContrast(value, contrast) {
+            return Math.min(255, Math.max(0, ((value - 128) * contrast + 128)));
+        }
+
+        function drawAsciiFrame(width) {
+            const chars = charsInput.value;
+            const contrast = parseFloat(contrastInput.value);
+            const useColor = colorInput.checked;
+
+            if (!video.videoWidth) return;
+
+            const ratio = video.videoHeight / video.videoWidth;
+            const height = Math.floor(width * ratio);
+
+            // Set internal processing resolution
+            videoCanvas.width = width;
+            videoCanvas.height = height;
+
+            // Set output resolution (Canvas)
+            const fontSize = 10;
+            const charWidth = fontSize * 0.6;
+            asciiCanvas.width = width * charWidth;
+            asciiCanvas.height = height * fontSize;
+
+            // Styling
+            asciiCtx.fillStyle = "#000";
+            asciiCtx.fillRect(0, 0, asciiCanvas.width, asciiCanvas.height);
+            asciiCtx.font = `${fontSize}px monospace`;
+            asciiCtx.textBaseline = 'top';
+
+            // 1. Draw small video frame
+            videoCtx.drawImage(video, 0, 0, width, height);
+            
+            // 2. Get Pixels
+            const frame = videoCtx.getImageData(0, 0, width, height);
+            const data = frame.data;
+
+            // 3. Loop and Convert
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const i = (y * width + x) * 4;
+                    
+                    let r = applyContrast(data[i], contrast);
+                    let g = applyContrast(data[i + 1], contrast);
+                    let b = applyContrast(data[i + 2], contrast);
+
+                    // Grayscale for char selection
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                    const c = mapChar(gray, chars);
+
+                    asciiCtx.fillStyle = useColor ? `rgb(${r},${g},${b})` : "#fff";
+                    asciiCtx.fillText(c, x * charWidth, y * fontSize);
+                }
+            }
+        }
+
+        // Helper to wait for video seeking to complete
+        const seekTo = (time) => new Promise((resolve) => {
+            const onSeeked = () => {
+                video.removeEventListener('seeked', onSeeked);
+                resolve();
+            };
+            video.addEventListener('seeked', onSeeked);
+            video.currentTime = time;
+        });
+
+        // 4. MAIN CONVERSION LOOP
+        convertBtn.addEventListener('click', async () => {
+            if (!video.src) return;
+
+            // UI State: Processing
+            convertBtn.disabled = true;
+            convertBtn.innerText = "Encoding...";
+            progressContainer.classList.remove('hidden');
+            downloadLink.classList.add('hidden');
+
+            const width = parseInt(widthInput.value);
+            const fps = 15; // Capped for browser performance
+            const whammyVideo = new Whammy.Video(fps);
+            
+            const interval = 1 / fps;
+            const duration = video.duration;
+            let currentTime = 0;
+
+            try {
+                while (currentTime < duration) {
+                    // Update Time
+                    await seekTo(currentTime);
+                    
+                    // Render Frame
+                    drawAsciiFrame(width);
+                    
+                    // Add to Video
+                    whammyVideo.add(asciiCanvas);
+
+                    // Update Progress
+                    currentTime += interval;
+                    const pct = Math.min(100, Math.round((currentTime / duration) * 100));
+                    progressBar.style.width = `${pct}%`;
+                    progressText.innerText = `${pct}%`;
+
+                    // Yield to UI thread
+                    await new Promise(r => setTimeout(r, 0));
+                }
+
+                // Finalize
+                progressText.innerText = "Compiling WebM file...";
+                const output = whammyVideo.compile();
+                const url = URL.createObjectURL(output);
+
+                // Show Download
+                downloadLink.href = url;
+                downloadLink.download = `ascii_${fileNameDisplay.innerText.replace('.mp4', '')}.webm`;
+                downloadLink.classList.remove('hidden');
+                
+                convertBtn.innerText = "Conversion Complete";
+
+            } catch (error) {
+                console.error(error);
+                alert("An error occurred during processing. The video might be too long for your browser memory.");
+                convertBtn.disabled = false;
+                convertBtn.innerText = "Try Again";
+            }
+        });
+    </script>
 </body>
 </html>
