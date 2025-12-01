@@ -1,5 +1,0 @@
-{
-  "name": "Retro ASCII Player",
-  "description": "A real-time MP4 to ASCII art converter that runs entirely in your browser using the canvas api. No AI or external processing.",
-  "requestFramePermissions": []
-}
